@@ -1,0 +1,621 @@
+/* Popular Pet · Precificação Inteligente
+   Quatro telas, sem framework e sem build. A fonte é a do sistema: roda offline.
+
+   A cor do grupo está num lugar só, aqui embaixo. Trocar --roxo troca tudo,
+   inclusive os gráficos, que leem a variável em vez de repetir o hexadecimal. */
+
+:root{
+  --roxo:#804996;
+  --roxo-esc:#5A2F6B; --roxo-dado:#9A62AE; --roxo-claro:#F4EEF7; --roxo-linha:#E0D2E8;
+  --lima:#B4C805; --lima-txt:#7E9A0A; --lima-claro:#F3F7D9;
+
+  --tinta:#211A26; --tinta-med:#6B6071; --tinta-fraca:#9A91A0;
+  --linha:#E7E1EC; --fundo:#fff; --fundo-sub:#FAF8FC;
+
+  --subir:#4C7A1E; --subir-fundo:#E9F3DC;
+  --baixar:#9A4B14; --baixar-fundo:#FBEADC;
+  --manter:#5C5266; --manter-fundo:#EFECF2;
+  --revisar:#86610A; --revisar-fundo:#FDF2D7;
+  --bom:#2C7A3F; --ruim:#A33B2A;
+
+  --raio:10px; --raio-p:6px;
+  --sombra:0 1px 2px rgba(33,26,38,.05), 0 4px 14px rgba(33,26,38,.05);
+  --topo-h:52px;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  font-family:"Inter","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  font-size:14px;line-height:1.45;color:var(--tinta);background:var(--fundo-sub);
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:var(--roxo);text-decoration:none}
+a:hover{text-decoration:underline}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+:focus-visible{outline:2px solid var(--roxo);outline-offset:2px}
+svg{display:block}
+
+/* ================================================================= casca */
+.topo{
+  height:var(--topo-h);background:var(--roxo);color:#fff;display:flex;align-items:center;
+  gap:14px;padding:0 16px;
+}
+.topo .marca{width:28px;height:28px;border-radius:6px;background:var(--lima);
+  color:var(--roxo);display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:13px;flex:none}
+.topo h1{margin:0;font-size:15px;font-weight:600;letter-spacing:.1px}
+.topo nav{display:flex;gap:2px;margin-left:16px}
+.topo nav a{
+  color:#E6D8EE;padding:0 14px;height:var(--topo-h);display:flex;align-items:center;
+  font-size:13.5px;border-bottom:3px solid transparent;
+}
+.topo nav a:hover{color:#fff;text-decoration:none;background:rgba(255,255,255,.07)}
+.topo nav a.ativa{color:#fff;font-weight:600;border-bottom-color:var(--lima)}
+.topo .dir{margin-left:auto;display:flex;gap:9px;align-items:center}
+.topo select{
+  background:rgba(255,255,255,.93);border:0;border-radius:var(--raio-p);padding:5px 9px;
+  font-size:12.5px;color:var(--tinta);max-width:210px;
+}
+main{padding:16px}
+
+/* Painel: a tela inteira cabe sem rolar. */
+main.painel{height:calc(100vh - var(--topo-h));padding:14px 16px;overflow:hidden}
+
+/* ============================================================== estrutura */
+.cartao{background:#fff;border:1px solid var(--linha);border-radius:var(--raio);
+  box-shadow:var(--sombra);padding:14px 16px;min-width:0}
+.cartao>h3{margin:0 0 2px;font-size:12.5px;font-weight:650;color:var(--tinta)}
+.cartao>h3+.leg{margin:0 0 11px}
+.leg{font-size:11.5px;color:var(--tinta-med);margin:0 0 9px}
+.grade{display:grid;gap:13px}
+.vazio{padding:26px 12px;text-align:center;color:var(--tinta-fraca);font-size:12.5px}
+.carregando{padding:48px;text-align:center;color:var(--tinta-med)}
+hr.fina{border:0;border-top:1px solid var(--linha);margin:13px 0}
+
+/* ========================================================= painel (tela 1) */
+.painel-grade{
+  display:grid;height:100%;gap:13px;
+  grid-template-columns:1.15fr .82fr 1.03fr;
+  grid-template-rows:auto auto auto 1fr;
+  grid-template-areas:
+    "pipe   pipe    pipe"
+    "acao   acao    acao"
+    "indice saidas  valor"
+    "base   base    base";
+}
+.pa-acao{grid-area:acao}
+/* `align-self:start` nos cartões do meio: sem isso o grid os estica e sobra
+   um vão branco no meio da tela. */
+.pa-indice{grid-area:indice;align-self:start}
+.pa-saidas{grid-area:saidas;align-self:start}
+.pa-valor{grid-area:valor;overflow:auto}
+/* A faixa de adoção fica colada no pé da tela: o espaço que sobra
+   entre os cartões e ela é respiro, não cartão esticado e vazio. */
+.pa-base{grid-area:base;align-self:end}
+@media(max-width:1100px){
+  main.painel{height:auto;overflow:visible}
+  .painel-grade{grid-template-columns:1fr;
+    grid-template-areas:"pipe" "acao" "indice" "saidas" "valor" "base"}
+}
+
+/* A linha de base mora aqui: visível e conferível, sem roubar o destaque.
+   Ela mede a adoção — a diferença entre antes e depois de ligar a ferramenta.
+   Passada a adoção esses números param de se mexer, e número parado no meio
+   do painel só ocupa espaço. */
+.rodape-base{
+  background:#fff;border:1px solid var(--linha);border-radius:var(--raio);
+  padding:8px 14px;display:flex;align-items:center;gap:14px;overflow:hidden;
+}
+.rodape-base .titulo{font-size:10.5px;color:var(--tinta-med);text-transform:uppercase;
+  letter-spacing:.05em;line-height:1.35;width:124px;flex:none}
+.rodape-base .titulo small{display:block;text-transform:none;letter-spacing:0;
+  color:var(--tinta-fraca);font-size:11px}
+.rodape-base .chips{display:flex;gap:0;flex:1;min-width:0;overflow:auto}
+.rodape-base .chip{display:block;padding:2px 14px;
+  border-left:1px solid var(--linha);white-space:nowrap;font-size:13px}
+.rodape-base .chip .rot{display:block;font-size:10px;color:var(--tinta-fraca);
+  margin-bottom:1px}
+.rodape-base .chip .de{color:var(--tinta-fraca);text-decoration:line-through;
+  margin-right:4px;font-size:12px}
+.rodape-base .chip b{font-weight:700;margin-left:4px}
+.rodape-base .chip .mt{display:block}
+.rodape-base .chip b.bom{color:var(--bom)} .rodape-base .chip b.ruim{color:var(--ruim)}
+.rodape-base .chip .mt{font-size:10px;color:var(--tinta-fraca)}
+
+/* A chamada para a ação: é o que a pessoa vê primeiro e clica. */
+.chamada{
+  background:linear-gradient(100deg,var(--roxo),var(--roxo-esc));color:#fff;
+  border-radius:var(--raio);padding:15px 20px;display:flex;align-items:center;gap:22px;
+  box-shadow:var(--sombra);
+}
+.chamada .frase{flex:1;min-width:0}
+.chamada .frase b{display:block;font-size:19px;font-weight:650;letter-spacing:-.01em}
+.chamada .frase span{font-size:12.5px;color:#E6D8EE}
+.chamada .mini{display:flex;gap:22px}
+.chamada .mini div{text-align:right}
+.chamada .mini b{display:block;font-size:19px;font-weight:650;line-height:1.15}
+.chamada .mini span{font-size:10.5px;color:#E6D8EE;text-transform:uppercase;letter-spacing:.06em}
+.btn-grande{
+  background:var(--lima);color:#2E3B00;border:0;border-radius:var(--raio-p);
+  padding:0 26px;height:46px;font-size:15px;font-weight:700;white-space:nowrap;
+  box-shadow:0 2px 0 rgba(0,0,0,.14);
+}
+.btn-grande:hover{filter:brightness(1.06)}
+.btn-grande:disabled{opacity:.45;cursor:not-allowed}
+
+/* Linha de base: antes → agora → meta, uma linha por indicador. */
+.lb{display:flex;flex-direction:column;gap:7px}
+.lb .item{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline}
+.lb .nome{font-size:12px;color:var(--tinta);min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.lb .vals{font-size:12px;white-space:nowrap}
+.lb .de{color:var(--tinta-fraca);text-decoration:line-through}
+.lb .para{font-weight:700}
+.lb .para.bom{color:var(--bom)} .lb .para.ruim{color:var(--ruim)}
+.lb .para.na{color:var(--tinta-fraca);font-weight:400}
+.lb .meta{color:var(--tinta-med);font-size:11px}
+.lb .trilho{grid-column:1/-1;height:4px;border-radius:3px;background:var(--roxo-claro);
+  position:relative;overflow:hidden}
+.lb .trilho i{position:absolute;inset:0 auto 0 0;border-radius:3px;background:var(--roxo-dado)}
+.lb .trilho i.bom{background:var(--lima)}
+.lb .trilho b{position:absolute;top:-2px;width:2px;height:8px;background:var(--tinta-med)}
+
+/* Faixa de composição das saídas. */
+.legenda{display:flex;flex-wrap:wrap;gap:4px 15px;margin-top:9px;font-size:11.5px}
+.legenda span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.legenda i{width:9px;height:9px;border-radius:2px;display:inline-block}
+.legenda b{font-variant-numeric:tabular-nums}
+
+/* ======================================================= análise (tela 2) */
+.analise{max-width:1180px;margin:0 auto}
+.passo{display:flex;align-items:center;gap:14px;margin-bottom:13px}
+.passo .barra{flex:1;height:6px;border-radius:4px;background:var(--roxo-claro);overflow:hidden}
+.passo .barra i{display:block;height:100%;background:var(--lima);border-radius:4px;
+  transition:width .25s}
+.passo .conta{font-size:12.5px;color:var(--tinta-med);white-space:nowrap}
+.passo .valor{font-size:12.5px;color:var(--tinta-med);white-space:nowrap}
+
+.an-grade{display:grid;grid-template-columns:1.15fr .85fr;gap:13px;align-items:start}
+@media(max-width:1000px){.an-grade{grid-template-columns:1fr}}
+
+.item-cab{display:flex;align-items:flex-start;gap:12px;margin-bottom:3px}
+.item-cab .quem{flex:1;min-width:0}
+.item-cab h2{margin:0;font-size:19px;font-weight:650;letter-spacing:-.01em}
+.item-cab .meta{font-size:12px;color:var(--tinta-med);margin-top:2px}
+
+/* O movimento de preço: é o número que a pessoa está decidindo. */
+.mov{display:flex;align-items:center;gap:16px;margin:14px 0 4px}
+.mov .lado{min-width:0}
+.mov .rot{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--tinta-med);display:block}
+.mov .n{font-size:27px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.mov .seta{font-size:21px;color:var(--tinta-fraca)}
+.mov .delta{font-size:15px;font-weight:700;padding:3px 10px;border-radius:20px}
+.mov .delta.sobe{background:var(--subir-fundo);color:var(--subir)}
+.mov .delta.desce{background:var(--baixar-fundo);color:var(--baixar)}
+.mov .delta.igual{background:var(--manter-fundo);color:var(--manter)}
+
+.aposta{background:var(--lima-claro);border-left:3px solid var(--lima);
+  border-radius:0 var(--raio-p) var(--raio-p) 0;padding:11px 14px;font-size:12.5px;
+  margin-top:12px}
+.aposta b{color:var(--roxo-esc)}
+.porque{background:var(--roxo-claro);border-left:3px solid var(--roxo);
+  border-radius:0 var(--raio-p) var(--raio-p) 0;padding:11px 14px;font-size:12.5px;
+  margin-top:11px;color:var(--roxo-esc)}
+
+.fatos{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+  background:var(--linha);border:1px solid var(--linha);border-radius:var(--raio-p);
+  overflow:hidden;margin-top:13px}
+.fatos div{background:#fff;padding:9px 11px}
+.fatos .r{font-size:10.5px;color:var(--tinta-med);text-transform:uppercase;
+  letter-spacing:.05em}
+.fatos .v{font-size:14.5px;font-weight:650;margin-top:1px}
+.fatos .v small{font-size:11.5px;font-weight:400;color:var(--tinta-med)}
+
+.acoes{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px;align-items:center}
+.btn{height:38px;padding:0 17px;border:1px solid var(--linha);background:#fff;
+  border-radius:var(--raio-p);font-size:13.5px;font-weight:500}
+.btn:hover{border-color:var(--roxo-linha);background:var(--fundo-sub)}
+.btn.aprova{background:var(--subir-fundo);border-color:#BDD8A4;color:var(--subir);
+  font-weight:650}
+.btn.aprova:hover{background:#DEEDCC}
+.btn.primario{background:var(--roxo);border-color:var(--roxo);color:#fff;font-weight:600}
+.btn.primario:hover{background:var(--roxo-esc)}
+.btn.pequeno{height:30px;padding:0 11px;font-size:12.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ativo{background:var(--roxo-claro);border-color:var(--roxo-linha);
+  color:var(--roxo-esc);font-weight:600}
+
+.selo{display:inline-block;vertical-align:middle;height:20px;line-height:20px;padding:0 10px;border-radius:11px;
+  font-size:11px;font-weight:700;white-space:nowrap}
+.selo.SUBIR{background:var(--subir-fundo);color:var(--subir)}
+.selo.BAIXAR{background:var(--baixar-fundo);color:var(--baixar)}
+.selo.MANTER{background:var(--manter-fundo);color:var(--manter)}
+.selo.REVISAR{background:var(--revisar-fundo);color:var(--revisar)}
+.selo.Alto{background:var(--baixar-fundo);color:var(--baixar)}
+.selo.Médio{background:var(--revisar-fundo);color:var(--revisar)}
+.selo.Baixo{background:var(--subir-fundo);color:var(--subir)}
+.selo.Aprovada{background:var(--subir-fundo);color:var(--subir)}
+.selo.Editada{background:var(--revisar-fundo);color:var(--revisar)}
+.selo.Rejeitada{background:var(--baixar-fundo);color:var(--baixar)}
+.selo.Adiada{background:var(--manter-fundo);color:var(--manter)}
+.selo.Pendente{background:#fff;border:1px solid var(--linha);color:var(--tinta-med);
+  line-height:18px}
+.selo.alerta{background:var(--revisar-fundo);color:var(--revisar)}
+.selo.nao{background:var(--baixar-fundo);color:var(--baixar)}
+.selo.ok{background:var(--subir-fundo);color:var(--subir)}
+
+.regra{display:inline-block;background:var(--roxo-claro);border-radius:4px;padding:2px 7px;
+  font-size:11px;font-weight:700;color:var(--roxo);margin:0 5px 5px 0;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+/* ====================================================== tabelas (3 e 4) */
+.tab{border:1px solid var(--linha);border-radius:var(--raio);overflow:auto;background:#fff;
+  box-shadow:var(--sombra);max-height:420px}
+table{width:100%;border-collapse:collapse}
+thead th{position:sticky;top:0;z-index:2;background:#fff;text-align:left;
+  font-size:10.5px;font-weight:650;color:var(--tinta-med);text-transform:uppercase;
+  letter-spacing:.05em;padding:9px 11px;white-space:nowrap;
+  border-bottom:1px solid var(--linha)}
+tbody td{padding:8px 11px;border-bottom:1px solid #F3F0F6;font-size:12.5px}
+tbody tr:last-child td{border-bottom:0}
+tbody tr.clicavel{cursor:pointer}
+tbody tr.clicavel:hover td{background:var(--roxo-claro)}
+td.r,th.r{text-align:right} td.c,th.c{text-align:center}
+.pos{color:var(--bom);font-weight:600} .neg{color:var(--ruim);font-weight:600}
+.sku{font-size:10.5px;color:var(--tinta-fraca);font-variant-numeric:tabular-nums}
+
+/* ============================================================== filtros */
+.filtros{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
+.campo{display:flex;flex-direction:column;gap:3px}
+.campo label{font-size:10.5px;color:var(--tinta-med);text-transform:uppercase;
+  letter-spacing:.05em}
+.campo select,.campo input{border:1px solid var(--linha);border-radius:var(--raio-p);
+  padding:0 9px;font-size:13px;background:#fff;height:34px}
+.campo input[type=text]{min-width:190px}
+
+/* ================================================================= base */
+.solta{border:2px dashed var(--roxo-linha);border-radius:var(--raio);padding:26px;
+  text-align:center;background:var(--roxo-claro);transition:.15s}
+.solta.sobre{border-color:var(--lima);background:var(--lima-claro)}
+.solta b{display:block;font-size:14.5px;margin-bottom:3px}
+.solta span{font-size:12.5px;color:var(--tinta-med)}
+.mapa{display:grid;grid-template-columns:minmax(0,.62fr) auto minmax(0,1.55fr) auto;gap:1px;background:var(--linha);
+  border:1px solid var(--linha);border-radius:var(--raio-p);overflow:hidden;font-size:12.5px}
+.mapa>div{background:#fff;padding:8px 11px;display:flex;align-items:center;gap:8px;min-width:0}
+.mapa .cab{background:var(--fundo-sub);font-size:10.5px;color:var(--tinta-med);
+  text-transform:uppercase;letter-spacing:.05em;font-weight:650}
+.mapa .de{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.mapa .ev{font-size:11px;color:var(--tinta-med);display:block}
+.barra-conf{width:46px;height:5px;border-radius:3px;background:var(--roxo-claro);
+  overflow:hidden;flex:none}
+.barra-conf i{display:block;height:100%;background:var(--lima)}
+.barra-conf i.baixa{background:#E0A020}
+
+.checklist{list-style:none;padding:0;margin:0;font-size:12.5px}
+.checklist li{padding:7px 0 7px 24px;overflow-wrap:anywhere;position:relative;border-bottom:1px solid #F3F0F6}
+.checklist li:last-child{border-bottom:0}
+.checklist li::before{position:absolute;left:2px;top:7px;font-weight:700}
+.checklist li.ok::before{content:"✓";color:var(--bom)}
+.checklist li.nao::before{content:"✕";color:var(--ruim)}
+.checklist li.na::before{content:"–";color:var(--tinta-fraca)}
+.checklist small{display:block;color:var(--tinta-med);font-size:11px}
+
+.pares{width:100%;font-size:12.5px;border-collapse:collapse}
+.pares td{padding:6px 0;border-bottom:1px solid #F3F0F6;vertical-align:top}
+.pares td:last-child{text-align:right;font-weight:600;white-space:nowrap;padding-left:12px}
+.pares tr:last-child td{border-bottom:0}
+
+/* =============================================================== janela */
+.sombra-fundo{position:fixed;inset:0;background:rgba(33,20,42,.42);z-index:40}
+.janela{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:min(760px,94vw);max-height:88vh;background:#fff;border-radius:var(--raio);
+  z-index:41;box-shadow:0 18px 60px rgba(0,0,0,.3);display:flex;flex-direction:column}
+.janela header{padding:14px 18px;border-bottom:1px solid var(--linha);display:flex;
+  align-items:flex-start;gap:10px}
+.janela header h3{margin:0;font-size:15px;font-weight:650}
+.janela header .x{margin-left:auto;background:none;border:0;font-size:20px;line-height:1;
+  color:var(--tinta-med);padding:2px 7px;border-radius:5px}
+.janela header .x:hover{background:var(--fundo-sub)}
+.janela .corpo{padding:16px 18px;overflow:auto;flex:1}
+.janela .pe{border-top:1px solid var(--linha);padding:12px 18px;background:var(--fundo-sub);
+  display:flex;gap:9px;justify-content:flex-end;align-items:center}
+
+.toast{position:fixed;right:16px;bottom:16px;z-index:60;background:var(--tinta);color:#fff;
+  padding:12px 17px;border-radius:var(--raio-p);font-size:13px;max-width:420px;
+  box-shadow:0 8px 26px rgba(0,0,0,.26);opacity:0;transform:translateY(8px);
+  transition:opacity .18s,transform .18s;pointer-events:none}
+.toast.on{opacity:1;transform:none}
+.toast.erro{background:#8A2017}
+.aviso{background:var(--revisar-fundo);border-left:3px solid #E0A020;padding:10px 13px;
+  border-radius:0 var(--raio-p) var(--raio-p) 0;margin-bottom:12px;font-size:12.5px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media print{.topo,.acoes,.btn{display:none!important}body{background:#fff}}
+
+/* ======================================================= histórico (tela 3) */
+/* Placar na coluna da esquerda, alinhado com os gráficos que o produziram. */
+.hist-grade{display:grid;grid-template-columns:.62fr 1.25fr .9fr;gap:13px;
+  align-items:start}
+@media(max-width:1180px){.hist-grade{grid-template-columns:1fr}}
+.pl-col .pl{padding:9px 0;border-bottom:1px solid #F3F0F6}
+.pl-col .pl:last-child{border-bottom:0;padding-bottom:0}
+.pl-col .pl .r{display:block;font-size:10.5px;color:var(--tinta-med);
+  text-transform:uppercase;letter-spacing:.05em}
+.pl-col .pl .v{display:block;font-size:21px;font-weight:700;line-height:1.25;
+  letter-spacing:-.01em}
+.pl-col .pl .v small{font-size:12.5px;font-weight:400;color:var(--tinta-med)}
+.pl-col .pl .o{display:block;font-size:11px;color:var(--tinta-fraca)}
+.pl-col .pl.alerta .v{color:var(--ruim)}
+
+/* Retenção: a recomendação de preço de um lado, quem assina do outro.
+   Antes isso virava "REVISAR" e o analista abria um item sem nada para revisar. */
+.retido{border-radius:var(--raio-p);padding:11px 14px;margin:12px 0 0;font-size:12.5px;
+  border-left:3px solid}
+.retido b{display:block;font-size:13px;margin-bottom:2px}
+.retido span{display:block}
+.retido small{display:block;margin-top:5px;color:var(--tinta-med);font-size:11.5px}
+.retido.aprovacao{background:var(--revisar-fundo);border-color:#D9A520;color:var(--revisar)}
+.retido.bloqueado{background:var(--baixar-fundo);border-color:#C06A2A;color:var(--baixar)}
+.selo.estrategico{background:var(--roxo-claro);color:var(--roxo-esc)}
+
+/* Número em coluna estreita não pode quebrar entre "R$" e o valor. */
+.pa-valor td.r{white-space:nowrap}
+.pa-valor td:first-child{min-width:132px}
+
+/* ======================================================== navegação (tela 2) */
+/* A fila ordenada por valor é sugestão, não esteira: o analista chega com
+   assunto próprio e precisa chegar no item sem percorrer os anteriores. */
+.navbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:13px;
+  background:#fff;border:1px solid var(--linha);border-radius:var(--raio);
+  box-shadow:var(--sombra);padding:10px 14px}
+.navbar .busca input{height:34px;border:1px solid var(--linha);border-radius:var(--raio-p);
+  padding:0 11px;font-size:13px;min-width:250px}
+.navbar .ordena{display:flex;align-items:center;gap:7px}
+.navbar .ordena label{font-size:10.5px;color:var(--tinta-med);text-transform:uppercase;
+  letter-spacing:.05em}
+.navbar .ordena select{height:34px;border:1px solid var(--linha);border-radius:var(--raio-p);
+  padding:0 9px;font-size:13px;background:#fff}
+.navbar .passo{display:flex;align-items:center;gap:11px;flex:1;min-width:230px}
+.navbar .passo .barra{flex:1;height:6px;border-radius:4px;background:var(--roxo-claro);
+  overflow:hidden;min-width:70px}
+.navbar .passo .barra i{display:block;height:100%;background:var(--lima);border-radius:4px}
+.navbar .passo .conta,.navbar .passo .valor{font-size:12.5px;color:var(--tinta-med);
+  white-space:nowrap}
+.navbar .passo .conta b{color:var(--tinta)}
+.pular{display:flex;gap:8px}
+.nav{display:block;border:1px solid var(--linha);border-radius:var(--raio-p);
+  padding:5px 11px;max-width:190px;text-decoration:none;color:var(--tinta)}
+.nav:hover{background:var(--roxo-claro);border-color:var(--roxo-linha);text-decoration:none}
+.nav .r{display:block;font-size:10px;color:var(--tinta-fraca);letter-spacing:.04em}
+.nav b{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.nav .s{display:block;font-size:10.5px;color:var(--tinta-fraca)}
+.nav.vazia{color:var(--tinta-fraca);font-size:11.5px;padding:13px 11px;
+  border-style:dashed;background:var(--fundo-sub)}
+/* Anterior/próximo logo após a busca; o progresso é o último e absorve a sobra. */
+.navbar .pular{order:5}
+.navbar .passo{order:10;justify-content:flex-end}
+.navbar .busca input{min-width:210px}
+h3.secao{margin:20px 0 11px;font-size:14px;font-weight:650;color:var(--tinta)}
+.ponto{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;
+  vertical-align:middle}
+/* Valor em reais não quebra entre o símbolo e o número. */
+.hist-grade td.r{white-space:nowrap}
+/* Nome do campo em cima, evidência embaixo: lado a lado o nome quebrava em duas
+   linhas e a evidência empurrava a confiança para fora. */
+.mapa .campo-alvo{display:block}
+.mapa .campo-alvo b{display:block;font-weight:600;margin-bottom:1px}
+/* A barra de navegação precisa quebrar em duas faixas em tela estreita: lado a
+   lado, o progresso colidia com os cartões de anterior/próximo. */
+.navbar{row-gap:9px}
+.navbar .passo{flex:1 1 260px}
+.nav{max-width:142px;padding:4px 10px}
+.nav b{font-size:12px}
+
+/* ======================================================= pipeline na tela */
+.abertura{max-width:720px;margin:7vh auto 0}
+.trilha{list-style:none;padding:0;margin:18px 0}
+.trilha li{display:flex;align-items:flex-start;gap:12px;padding:10px 0;position:relative}
+.trilha li+li::before{content:"";position:absolute;left:7px;top:-10px;width:2px;height:20px;
+  background:var(--linha)}
+.trilha li.feita+li::before,.trilha li.agora::before{background:var(--lima)}
+.trilha .bolha{width:16px;height:16px;border-radius:50%;border:2px solid var(--linha);
+  background:#fff;flex:none;margin-top:2px}
+.trilha li.feita .bolha{background:var(--lima);border-color:var(--lima)}
+.trilha li.agora .bolha{border-color:var(--roxo);background:var(--roxo);
+  box-shadow:0 0 0 4px var(--roxo-claro);animation:pulsa 1.1s ease-in-out infinite}
+.trilha li div{flex:1;min-width:0}
+.trilha li b{display:block;font-size:13.5px;font-weight:600}
+.trilha li.futura b,.trilha li.futura small{color:var(--tinta-fraca)}
+.trilha li small{display:block;font-size:11.5px;color:var(--tinta-med);margin-top:1px}
+.trilha li.agora b{color:var(--roxo-esc)}
+.trilha .t{font-size:11.5px;color:var(--tinta-fraca);font-variant-numeric:tabular-nums;
+  white-space:nowrap;padding-top:2px}
+@keyframes pulsa{0%,100%{box-shadow:0 0 0 4px var(--roxo-claro)}
+  50%{box-shadow:0 0 0 8px var(--roxo-claro)}}
+.chk{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--tinta-med)}
+@media (prefers-reduced-motion:reduce){.trilha li.agora .bolha{animation:none}}
+
+/* ===================================== faixa de estado do pipeline (painel) */
+/* O pipeline não é uma tela: é uma linha no alto do painel respondendo "o que
+   estou vendo é de quando, e está atualizado?". */
+.faixa-pipe{grid-area:pipe;display:flex;align-items:center;gap:12px;
+  background:#fff;border:1px solid var(--linha);border-radius:var(--raio);
+  padding:8px 14px;box-shadow:var(--sombra)}
+.faixa-pipe .txt{flex:1;min-width:0}
+.faixa-pipe .txt b{display:block;font-size:12.5px;font-weight:600}
+.faixa-pipe .txt span{display:block;font-size:11.5px;color:var(--tinta-med);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.faixa-pipe .ponto{width:9px;height:9px;border-radius:50%;background:var(--tinta-fraca);
+  flex:none}
+.faixa-pipe .ponto.ok{background:var(--lima)}
+.faixa-pipe .pulso{width:11px;height:11px;border-radius:50%;background:var(--roxo);
+  flex:none;animation:pulsa 1.1s ease-in-out infinite}
+.faixa-pipe .barra{width:150px;height:5px;border-radius:3px;background:var(--roxo-claro);
+  overflow:hidden;flex:none}
+.faixa-pipe .barra i{display:block;height:100%;background:var(--lima);transition:width .3s}
+.faixa-pipe .t{font-size:11.5px;color:var(--tinta-fraca);font-variant-numeric:tabular-nums}
+.faixa-pipe.rodando{border-color:var(--roxo-linha);background:var(--roxo-claro)}
+.faixa-pipe.erro{border-color:#E6B08A;background:var(--baixar-fundo)}
+.faixa-pipe.erro .ponto{background:var(--ruim)}
+
+/* ======================================================= câmara de preços */
+.camara{display:flex;flex-direction:column;gap:13px}
+
+/* A faixa de contexto: prazo, política e o que o silêncio custa. */
+.cam-faixa{display:grid;grid-template-columns:auto 1.4fr auto;gap:22px;align-items:start;
+  background:#fff;border:1px solid var(--linha);border-left:3px solid var(--lima);
+  border-radius:var(--raio);padding:12px 16px;box-shadow:var(--sombra)}
+.cam-faixa.apertado{border-left-color:#D9A520;background:var(--revisar-fundo)}
+.cam-faixa .r{display:block;font-size:10px;color:var(--tinta-fraca);text-transform:uppercase;
+  letter-spacing:.07em;margin-bottom:3px}
+.cam-faixa b{display:block;font-size:14px;font-weight:650;line-height:1.2}
+.cam-faixa small{display:block;font-size:11px;color:var(--tinta-med);margin-top:2px;
+  max-width:52ch}
+.cam-faixa .risco{text-align:right}
+.cam-faixa .risco b{font-size:19px}
+.cam-faixa .risco small{max-width:26ch;margin-left:auto}
+
+/* O interruptor da política de omissão. Travado para o analista, e parecendo
+   travado: cinza, sem cursor de clique e com o motivo no title. */
+.chave{display:inline-flex;align-items:center;gap:9px;cursor:pointer;user-select:none;
+  padding:3px 11px 3px 4px;border:1px solid var(--linha);border-radius:999px;background:#fff}
+.chave i{width:32px;height:18px;border-radius:999px;background:#CFC7D6;position:relative;
+  transition:background .15s}
+.chave i::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;
+  border-radius:50%;background:#fff;transition:left .15s;
+  box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.chave.on i{background:var(--lima)}
+.chave.on i::after{left:16px}
+.chave span{font-size:13px;font-weight:600}
+.chave:hover{border-color:var(--roxo-linha)}
+.chave.travada{cursor:not-allowed;opacity:.72;background:var(--fundo-sub)}
+.chave.travada:hover{border-color:var(--linha)}
+.chave.travada span::after{content:" 🔒";font-size:10px}
+
+/* Chips de fase e o placar de quem já votou. */
+.cam-chips{display:flex;gap:5px;flex-wrap:wrap}
+.cam-chips a{font-size:11.5px;padding:4px 11px;border-radius:999px;border:1px solid var(--linha);
+  color:var(--tinta-med);text-decoration:none;white-space:nowrap}
+.cam-chips a:hover{border-color:var(--roxo-linha);background:var(--roxo-claro);
+  text-decoration:none}
+.cam-chips a.ativo{background:var(--roxo);border-color:var(--roxo);color:#fff;font-weight:600}
+.cam-chips a.f-aguardando-gestor{border-color:#D9A520;color:var(--revisar)}
+.cam-chips a.f-aguardando-gestor.ativo{background:#D9A520;border-color:#D9A520;color:#fff}
+.cam-quem{margin-left:auto;display:flex;gap:14px}
+.cam-quem span{font-size:11.5px;color:var(--tinta-med)}
+.cam-quem b{font-size:13px;color:var(--tinta)}
+.cam-quem small{color:var(--tinta-fraca)}
+
+/* Um item da pauta. */
+.cam-lista{display:flex;flex-direction:column;gap:9px}
+.cam-item{background:#fff;border:1px solid var(--linha);border-radius:var(--raio);
+  padding:12px 15px;box-shadow:var(--sombra);border-left:3px solid var(--linha)}
+.cam-item.f-aguardando-gestor{border-left-color:#D9A520}
+.cam-item.f-em-votacao{border-left-color:var(--roxo-dado)}
+.cam-item.f-travada{border-left-color:#C06A2A;background:var(--fundo-sub)}
+.cam-item.f-homologada,.cam-item.f-enviada{border-left-color:var(--subir);opacity:.86}
+.cam-item .cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.cam-item .quem{min-width:0;flex:1}
+.cam-item .quem b{display:block;font-size:14px;font-weight:650;line-height:1.25}
+.cam-item .meta{font-size:11px;color:var(--tinta-med)}
+.cam-item .jogo{font-size:15px;font-weight:700;white-space:nowrap}
+.cam-item .jogo small{font-size:10px;font-weight:400;color:var(--tinta-fraca);
+  text-transform:uppercase;letter-spacing:.06em}
+.selo.fase{background:var(--manter-fundo);color:var(--manter)}
+.selo.fase.f-aguardando-gestor{background:var(--revisar-fundo);color:var(--revisar)}
+.selo.fase.f-homologada,.selo.fase.f-enviada{background:var(--subir-fundo);color:var(--subir)}
+.selo.fase.f-travada{background:var(--baixar-fundo);color:var(--baixar)}
+
+/* A cédula: uma linha por preço na mesa. */
+.cedula{display:flex;flex-direction:column;gap:5px}
+.ced{display:grid;grid-template-columns:92px 1fr auto auto;gap:12px;align-items:center;
+  padding:7px 11px;border:1px solid var(--linha);border-radius:var(--raio-p);
+  background:var(--fundo-sub)}
+.ced.venceu{border-color:var(--lima);background:var(--lima-claro)}
+.ced.homologado{border-color:var(--subir);background:var(--subir-fundo)}
+.ced .pr{font-size:16px;font-weight:700}
+.ced .qq{min-width:0}
+.ced .rot{display:block;font-size:11.5px;color:var(--tinta)}
+.ced .vt{display:block;font-size:10.5px;color:var(--tinta-fraca)}
+.ced .nv{font-size:11.5px;color:var(--tinta-med);white-space:nowrap}
+.ced .nv b{font-size:14px;color:var(--tinta)}
+
+.cam-item .pe{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;
+  padding-top:9px;border-top:1px solid #F3F0F6}
+.cam-item .falta{font-size:11.5px;color:var(--tinta-med);flex:1;min-width:200px}
+.cam-item .acs{display:flex;gap:6px;margin-left:auto}
+
+/* A discussão do item. */
+.thread{max-height:46vh;overflow:auto;display:flex;flex-direction:column;gap:9px;
+  padding-right:4px}
+.msg{border:1px solid var(--linha);border-radius:var(--raio-p);padding:8px 11px;
+  background:#fff}
+.msg.Agente{background:var(--roxo-claro);border-color:var(--roxo-linha)}
+.msg.Gestora{background:var(--revisar-fundo);border-color:#E8D49A}
+.msg.Sistema{background:var(--fundo-sub);border-style:dashed}
+.msg .ab{display:flex;align-items:baseline;gap:7px;margin-bottom:3px}
+.msg .ab b{font-size:12.5px}
+.msg .ab span{font-size:10px;color:var(--tinta-fraca);text-transform:uppercase;
+  letter-spacing:.06em}
+.msg .ab small{margin-left:auto;font-size:10.5px;color:var(--tinta-fraca)}
+.msg p{margin:0;font-size:12.5px;line-height:1.5;white-space:pre-wrap}
+.msg .cp{display:inline-block;margin-top:5px;font-size:11.5px;font-weight:700;
+  background:#fff;border:1px solid var(--linha);border-radius:999px;padding:1px 9px}
+.msg.t-voto{border-left:3px solid var(--lima)}
+.dizer{margin-top:12px;border-top:1px solid var(--linha);padding-top:11px}
+.dizer .bts{display:flex;gap:7px;justify-content:flex-end;margin-top:7px}
+textarea{width:100%;border:1px solid var(--linha);border-radius:var(--raio-p);padding:8px 10px;
+  font:inherit;font-size:12.5px;resize:vertical;color:var(--tinta)}
+textarea:focus{outline:2px solid var(--roxo-linha);outline-offset:-1px}
+
+@media (max-width:980px){
+  .cam-faixa{grid-template-columns:1fr;gap:12px}
+  .cam-faixa .risco{text-align:left}
+  .cam-faixa .risco small{margin-left:0}
+  .ced{grid-template-columns:80px 1fr auto;row-gap:6px}
+  .cam-quem{margin-left:0}
+}
+
+/* Leitura do gráfico: guia vertical e balão com todas as séries do ponto. */
+.gr{position:relative}
+.gr-hit{cursor:crosshair}
+.gr-dica{position:absolute;top:6px;transform:translateX(-50%);z-index:5;pointer-events:none;
+  background:var(--tinta);color:#fff;border-radius:var(--raio-p);padding:6px 9px;
+  font-size:11.5px;line-height:1.5;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.22)}
+.gr-dica>b{display:block;font-size:10.5px;color:#C9BFD1;text-transform:uppercase;
+  letter-spacing:.06em;margin-bottom:2px}
+.gr-dica span{display:flex;align-items:center;gap:6px}
+.gr-dica i{width:8px;height:8px;border-radius:2px;flex:none}
+.gr-dica span b{font-variant-numeric:tabular-nums}
+
+/* Composição do preço. */
+.barra-comp{display:flex;height:22px;border-radius:5px;overflow:hidden;margin:4px 0 11px}
+.barra-comp i{display:block;height:100%}
+table.comp td{padding:5px 0;font-size:12px;border-bottom:1px solid #F3F0F6}
+table.comp td small{display:block;font-size:10.5px;color:var(--tinta-fraca)}
+table.comp .pt{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px}
+table.comp tr.tot td{font-weight:700;border-bottom:0;padding-top:8px}
+.fatos .v.alerta{color:var(--ruim)}
+
+/* O quadro de estoque tem quatro números: em 2×2 nenhum fica órfão numa linha
+   sozinha, e o complemento vai embaixo do valor em vez de colado nele. */
+.fatos.estoque{grid-template-columns:repeat(2,1fr)}
+.fatos.estoque .v small{display:block;margin-top:1px;line-height:1.35}
+.fatos.estoque .v{line-height:1.3}
+
+/* Preço e frete do concorrente não quebram em duas linhas: "R$ 76,01" partido
+   ao meio é ilegível justamente na coluna que a pessoa veio conferir. */
+table.conc td,table.conc th{white-space:nowrap}
+table.conc td:first-child{white-space:normal}
+
+/* A cédula dentro da Análise: mesma anatomia da Câmara, encaixada na coluna. */
+.cedula-an{margin:12px 0 0;border:1px solid var(--linha);border-radius:var(--raio-p);
+  padding:10px 11px;background:var(--fundo-sub);display:flex;flex-direction:column;gap:5px}
+.cedula-an .cab-ced{display:flex;align-items:baseline;gap:9px;margin-bottom:2px}
+.cedula-an .cab-ced b{font-size:12.5px}
+.cedula-an .cab-ced span{font-size:11.5px;color:var(--tinta-med);flex:1;min-width:0}
+.cedula-an .ced{background:#fff}

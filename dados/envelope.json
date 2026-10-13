@@ -1,0 +1,248 @@
+{
+  "medido_em": "2026-10-12T13:32:51",
+  "maquina": {
+    "python": "3.11.15",
+    "plataforma": "linux",
+    "sqlite": "3.45.1",
+    "cpus": 2,
+    "scipy": true,
+    "sklearn": true,
+    "banco_do_ensaio": "/tmp/envelope-y966fmbr/envelope.db"
+  },
+  "rodada": {
+    "ensaio": "rodada completa",
+    "itens": 120,
+    "ms_total": 2031.1,
+    "ms_por_item": 16.926,
+    "otimizacao": "MILP (HiGHS) — ótimo",
+    "ms_otimizacao": 88.7,
+    "memoria_mb": 175.7,
+    "leitura": "planilha de 40 SKUs + banco SQLite",
+    "fases": [
+      {
+        "fase": "ler planilha (vendas, concorrência, promoções)",
+        "ms": 376.1,
+        "tipo": "fixo"
+      },
+      {
+        "fase": "ler cadastro do banco",
+        "ms": 4.2,
+        "tipo": "fixo"
+      },
+      {
+        "fase": "referência de mercado por SKU/canal",
+        "ms": 45.8,
+        "tipo": "marginal"
+      },
+      {
+        "fase": "sinais de venda e estoque",
+        "ms": 164.7,
+        "tipo": "marginal"
+      },
+      {
+        "fase": "decidir: piso, R01–R12, preço, risco, impacto",
+        "ms": 672.6,
+        "tipo": "marginal",
+        "itens": 120
+      }
+    ]
+  },
+  "degradacao": [
+    {
+      "falta": "scipy",
+      "presente": true,
+      "efeito": "a seleção da rodada cai para busca gulosa por impacto",
+      "perda": "a carteira deixa de ser ótima e o acoplamento de canal (R07) passa a ser tratado item a item",
+      "para": false
+    },
+    {
+      "falta": "scikit-learn",
+      "presente": true,
+      "efeito": "as camadas de estimativa desligam",
+      "perda": "volume estimado e chance de aceite deixam de aparecer; a recomendação de preço não muda, porque não depende delas",
+      "para": false
+    },
+    {
+      "falta": "ANTHROPIC_API_KEY",
+      "presente": false,
+      "efeito": "a justificativa é composta de forma determinística",
+      "perda": "o texto fica mais seco; nenhum número muda",
+      "para": false
+    },
+    {
+      "falta": "concorrente válido no SKU",
+      "presente": true,
+      "efeito": "a recomendação vira REVISAR com confiança zerada",
+      "perda": "nenhuma — é o comportamento desejado: sem referência o sistema não opina",
+      "para": false
+    },
+    {
+      "falta": "coleta com menos de 48h (R06)",
+      "presente": true,
+      "efeito": "o item é roteado para revisão humana",
+      "perda": "nenhuma — a R06 é regra da própria Popular Pet",
+      "para": false
+    },
+    {
+      "falta": "planilha do ERP",
+      "presente": true,
+      "efeito": "a aplicação não sobe e diz exatamente qual arquivo falta",
+      "perda": "total — é a única dependência dura",
+      "para": true
+    },
+    {
+      "falta": "coluna obrigatória na planilha",
+      "presente": true,
+      "efeito": "a sincronização é tudo-ou-nada: nada é alterado",
+      "perda": "nenhuma — a base anterior continua íntegra",
+      "para": false
+    }
+  ],
+  "escala_otimizacao": [
+    {
+      "linhas": 120,
+      "capacidade": 20,
+      "ms": 112.0,
+      "metodo": "MILP (HiGHS) — ótimo",
+      "ok": true
+    },
+    {
+      "linhas": 1200,
+      "capacidade": 20,
+      "ms": 1186.8,
+      "metodo": "MILP (HiGHS) — ótimo",
+      "ok": true
+    },
+    {
+      "linhas": 12000,
+      "capacidade": 60,
+      "ms": 10890.9,
+      "metodo": "MILP (HiGHS) — ótimo",
+      "ok": true
+    },
+    {
+      "linhas": 120000,
+      "capacidade": 600,
+      "ms": 115573.4,
+      "metodo": "MILP (HiGHS) — ótimo",
+      "ok": true
+    }
+  ],
+  "leitura_concorrente": [
+    {
+      "analistas": 1,
+      "carregamentos": 5,
+      "segundos": 0.064,
+      "ms_mediano": 12.8,
+      "ms_p95": 13.2,
+      "erros": 0
+    },
+    {
+      "analistas": 2,
+      "carregamentos": 10,
+      "segundos": 0.252,
+      "ms_mediano": 53.6,
+      "ms_p95": 59.2,
+      "erros": 0
+    },
+    {
+      "analistas": 4,
+      "carregamentos": 20,
+      "segundos": 0.607,
+      "ms_mediano": 120.8,
+      "ms_p95": 150.4,
+      "erros": 0
+    },
+    {
+      "analistas": 8,
+      "carregamentos": 40,
+      "segundos": 1.07,
+      "ms_mediano": 188.9,
+      "ms_p95": 325.7,
+      "erros": 0
+    },
+    {
+      "analistas": 16,
+      "carregamentos": 80,
+      "segundos": 2.341,
+      "ms_mediano": 416.3,
+      "ms_p95": 738.4,
+      "erros": 0
+    }
+  ],
+  "escrita_concorrente": [
+    {
+      "analistas": 1,
+      "gravacoes": 32,
+      "segundos": 0.072,
+      "gravacoes_por_s": 447.5,
+      "erros": 0,
+      "exemplo_erro": null
+    },
+    {
+      "analistas": 2,
+      "gravacoes": 32,
+      "segundos": 0.051,
+      "gravacoes_por_s": 629.8,
+      "erros": 0,
+      "exemplo_erro": null
+    },
+    {
+      "analistas": 4,
+      "gravacoes": 32,
+      "segundos": 0.048,
+      "gravacoes_por_s": 665.1,
+      "erros": 0,
+      "exemplo_erro": null
+    },
+    {
+      "analistas": 8,
+      "gravacoes": 32,
+      "segundos": 0.093,
+      "gravacoes_por_s": 343.2,
+      "erros": 0,
+      "exemplo_erro": null
+    },
+    {
+      "analistas": 16,
+      "gravacoes": 32,
+      "segundos": 0.073,
+      "gravacoes_por_s": 439.5,
+      "erros": 0,
+      "exemplo_erro": null
+    }
+  ],
+  "memoria_pico_mb": 482.1,
+  "limites": [
+    {
+      "limite": "Catálogo por rodada",
+      "valor": "~8.101 itens em 60 s",
+      "base": "380 ms de custo fixo (ler a base) + 7.36 ms por item, medidos em 120 itens",
+      "extrapolado": true
+    },
+    {
+      "limite": "Otimização da carteira",
+      "valor": "120.000 linhas em 115573 ms",
+      "base": "MILP (HiGHS) — ótimo, capacidade 600",
+      "extrapolado": false
+    },
+    {
+      "limite": "Analistas com a tela aberta",
+      "valor": "16 sem erro · p95 738.4 ms",
+      "base": "80 carregamentos completos de rodada",
+      "extrapolado": false
+    },
+    {
+      "limite": "Analistas gravando ao mesmo tempo",
+      "valor": "16 sem erro · 439.5 gravações/s",
+      "base": "SQLite em WAL serializa escrita; a fila é o limite",
+      "extrapolado": false
+    },
+    {
+      "limite": "Dependência dura",
+      "valor": "a planilha do ERP",
+      "base": "sem ela a aplicação não sobe; sem scipy, sklearn ou LLM ela sobe e degrada de forma declarada",
+      "extrapolado": false
+    }
+  ]
+}
